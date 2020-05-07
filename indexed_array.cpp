@@ -1,10 +1,13 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <cassert>
 #include <ctime>
 #include <iostream>
 #include <ratio>
+#include <vector>
 #include <unordered_map>
+#include <algorithm>
 
 template <class T, size_t N, size_t M>
 class IndexedArray {
@@ -12,21 +15,21 @@ private:
   const T* const _raw;
   const size_t _rows;
 
-  int get(int& l, int& h, const int offset, const T& t) {
+  int get(int& l, int& h, const int offset, const T& t) const {
     while (l <= h) {
       const int m = l + ((h - l) >> 1);
-      const int v = *(_raw + (m * N) + offset);
+      const int v = *(_raw + (m * N) + offset);;
       if (v == t) return m;
       t < v ? h = m - 1 : l = m + 1;
     }
     return -1;
   }
 
-  int last(int l, int h, const int offset, const T& t) {
+  int last(int l, int h, const int offset, const T& t) const {
     int r = -1;
     while (l <= h) {
-      int m = l + ((h - l + 1) >> 1);
-      int v = *(_raw + (m * N) + offset);
+      const int m = l + ((h - l) >> 1);
+      const int v = *(_raw + (m * N) + offset);
 
       if (t < v) {
         h = m - 1;
@@ -40,11 +43,11 @@ private:
     return r;
   }
 
-  int first(int l, int h, const int offset, const T& t) {
+  int first(int l, int h, const int offset, const T& t) const {
     int r = -1;
     while (l <= h) {
-      int m = l + ((h - l + 1) >> 1);
-      int v = *(_raw + (m * N) + offset);
+      const int m = l + ((h - l) >> 1);
+      const int v = *(_raw + (m * N) + offset);
 
       if (t < v) {
         h = m - 1;
@@ -61,7 +64,7 @@ private:
 public:
   IndexedArray(const T* arr, int len) : _raw(arr), _rows(len / N) {}
 
-  const T* operator()(const T args[M]) {
+  const T* operator()(const T args[M]) const {
     int l = 0, h = _rows;
     for (int i = 0; i < M; i++) {
       const int r = get(l, h, i, args[i]);
@@ -105,123 +108,114 @@ typedef struct {
 
 typedef struct {
   size_t operator()(const Arg& a) const {
-    return (a.a + a.b + a.c) % 512;
+    size_t result = 1;
+    result = 31 * result + a.a;
+    result = 31 * result + a.b;
+    result = 31 * result + a.c;
+    return result;
   }
 } Hash;
 
 using namespace std::chrono;
 
-const int v[] = {
-    1, 3, 2, 1,
-    2, 4, 3, 2,
-    4, 5, 4, 1,
-    5, 1, 1, 2,
-    6, 4, 2, 1,
-    6, 4, 3, 2,
-    6, 4, 4, 3,
-    6, 4, 6, 4,
-    6, 4, 7, 5,
-    8, 1, 2, 1,
-    8, 5, 5, 2,
-    9, 1, 0, 3
-};
-IndexedArray<int, 4, 3> arr(v, 48);
-
-void test_arr() {
-  high_resolution_clock::time_point t1 = high_resolution_clock::now();
-  printf("find by indexed array:\n");
-  for (int j = 0; j < 10000000; j++) {
-    for (int i = 0; i < 12; i++) {
-      const int* p = v + (i * 4);
-      const int args[] = {p[0], p[1], p[2]};
-      const int* r = arr(args);
-      // printf("[%d, %d, %d, %d]\n", r[0], r[1], r[2], r[3]);
-    }
-  }
-  high_resolution_clock::time_point t2 = high_resolution_clock::now();
-  duration<double, std::milli> time_span = t2 - t1;
-  std::cout << "It took me " << time_span.count() << " milliseconds.\n";
-  std::cout << std::endl;
-}
-
+#define SIZE 10000000
+#define RANDOM_MAX 999
+#define CONTEXT_LIMIT 20
 #define random(a, b) (rand() % (b - a + 1) + a)
 
-void test_arr_not_found() {
-  high_resolution_clock::time_point t1 = high_resolution_clock::now();
-  printf("find by arr not found:\n");
-  srand((int)time(NULL));
-  for (int i = 0; i < 10000000; i++) {
-    const int args[] = {random(0, 10), random(0, 10), random(0, 10)};
-    const int* r = arr(args);
-    // printf("find for [%d, %d, %d] -> ", args[0], args[1], args[2]);
-    // if (r == NULL) {
-    //   printf("NULL\n");
-    // } else {
-    //   printf("[%d, %d, %d, %d]\n", r[0], r[1], r[2], r[3]);
-    // }
+void show_context(const int* arr, const int i, const int limit = CONTEXT_LIMIT) {
+  const int start = std::max(0, i - limit);
+  const int end = std::min(SIZE, i + limit);
+  for (int j = start; j < end; j++) {
+    printf("[%2d, %2d, %2d]", arr[j * 3 + 0], arr[j * 3 + 1], arr[j * 3 + 2]);
+    if (j == i) printf(" <- %d", i);
+    printf("\n");
   }
-  high_resolution_clock::time_point t2 = high_resolution_clock::now();
-  duration<double, std::milli> time_span = t2 - t1;
-  std::cout << "It took me " << time_span.count() << " milliseconds.\n";
-  std::cout << std::endl;
 }
 
-std::unordered_map<Arg, int, Hash, Eq> map = {
-  {{1, 3, 2}, 1},
-  {{2, 4, 3}, 2},
-  {{4, 5, 4}, 1},
-  {{5, 1, 1}, 2},
-  {{6, 4, 2}, 1},
-  {{6, 4, 3}, 2},
-  {{6, 4, 4}, 3},
-  {{6, 4, 6}, 4},
-  {{6, 4, 7}, 5},
-  {{8, 1, 2}, 1},
-  {{8, 5, 5}, 2},
-  {{9, 1, 0}, 3}
-};
+void generate_data(int*& arr, std::unordered_map<Arg, int, Hash, Eq>& map) {
+  std::vector<Arg> data;
+  data.reserve(SIZE);
+  // radom generate, allow duplicate
+  srand((int) time(NULL));
+  while (data.size() < SIZE) {
+    const Arg arg(random(0, RANDOM_MAX), random(0, RANDOM_MAX), random(0, RANDOM_MAX));
+    data.push_back(arg);
+    map[arg] = 0;
+  }
+  // sort the vector
+  std::sort(std::begin(data), std::end(data), [](const Arg& x, const Arg& y) {
+    auto a = std::make_tuple(x.a, x.b, x.c);
+    auto b = std::make_tuple(y.a, y.b, y.c);
+    return a < b;
+  });
+  // convert vector to array
+  for (int i = 0; i < SIZE; i++) {
+    const int start = i * 3;
+    const Arg& x = data[i];
+    arr[start + 0] = x.a;
+    arr[start + 1] = x.b;
+    arr[start + 2] = x.c;
+  }
+}
 
-void test_map() {
+void benchmark_ia(int* arr) {
+  const IndexedArray<int, 3, 3> ia(arr, SIZE * 3);
+
+  printf("find in arr:\n");
   high_resolution_clock::time_point t1 = high_resolution_clock::now();
-  printf("find by map:\n");
-  for (int j = 0; j < 10000000; j++) {
-    for (int i = 0; i < 12; i++) {
-      const int* p = v + (i * 4);
-      const Arg args(p[0], p[1], p[2]);
-      auto it = map.find(args);
-      // printf("[%d, %d, %d, %d]\n", it->first.a, it->first.b, it->first.c, it->second);
+  int args[3] = {};
+  for (int i = 0; i < SIZE; i++) {
+    const int start = i * 3;
+    args[0] = arr[start + 0];
+    args[1] = arr[start + 1];
+    args[2] = arr[start + 2];
+    const int* r = ia(args);
+    if (r == NULL
+      || r[0] != args[0]
+      || r[1] != args[1]
+      || r[2] != args[2]) {
+      show_context(arr, i);
     }
+    assert(r != NULL);
+    assert(r[0] == args[0] && r[1] == args[1] && r[2] == args[2]);
   }
   high_resolution_clock::time_point t2 = high_resolution_clock::now();
   duration<double, std::milli> time_span = t2 - t1;
-  std::cout << "It took me " << time_span.count() << " milliseconds.\n";
-  std::cout << std::endl;
+  std::cout << "took " << time_span.count() << " milliseconds.\n"  << std::endl;
 }
 
-void test_map_not_found() {
+void benchmark_map(const std::unordered_map<Arg, int, Hash, Eq>& map, const int* arr) {
+  printf("find in map:\n");
   high_resolution_clock::time_point t1 = high_resolution_clock::now();
-  printf("find by map not found:\n");
-  srand((int)time(NULL));
-  for (int i = 0; i < 10000000; i++) {
-    const Arg arg(random(0, 100), random(0, 10), random(0, 10));
-    auto it = map.find(arg);
-    // printf("find for [%d, %d, %d] -> ", arg.a, arg.b, arg.c);
-    // if (it == map.end()) {
-    //   printf("NULL\n");
-    // } else {
-    //   printf("[%d, %d, %d, %d]\n", it->first.a, it->first.b, it->first.c, it->second);
-    // }
+  Arg args(0, 0, 0);
+  for (int i = 0; i < SIZE; i++) {
+    const int start = i * 3;
+    args.a = arr[start + 0];
+    args.b = arr[start + 1];
+    args.c = arr[start + 2];
+    auto it = map.find(args);
+    if (it == map.end()) {
+      printf("[%d, %d, %d]\n", args.a, args.b, args.c);
+      show_context(arr, i);
+    }
+    assert(it != map.end());
   }
   high_resolution_clock::time_point t2 = high_resolution_clock::now();
   duration<double, std::milli> time_span = t2 - t1;
-  std::cout << "It took me " << time_span.count() << " milliseconds.\n";
-  std::cout << std::endl;
+  std::cout << "took " << time_span.count() << " milliseconds.\n"  << std::endl;
+}
+
+void benchmark() {
+  int* arr = new int[SIZE * 3];
+  std::unordered_map<Arg, int, Hash, Eq> map;
+  generate_data(arr, map);
+
+  benchmark_ia(arr);
+  benchmark_map(map, arr);
 }
 
 int main(int argc, char* argv[]) {
-  test_arr();
-  test_arr_not_found();
-  test_map();
-  test_map_not_found();
+  benchmark();
   return 0;
 }
