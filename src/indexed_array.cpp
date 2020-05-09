@@ -133,7 +133,7 @@ void show_context(const int* arr, const int i, const int limit = CONTEXT_LIMIT) 
   }
 }
 
-void generate_data(int*& arr, std::unordered_map<Arg, int, Hash, Eq>& map) {
+void generate_data(int* arr, std::unordered_map<Arg, int, Hash, Eq>& map) {
   std::vector<Arg> data;
   data.reserve(SIZE);
   // radom generate, allow duplicate
