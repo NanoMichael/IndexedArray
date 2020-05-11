@@ -1,13 +1,13 @@
-#include <cstdlib>
+#include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <cstdio>
-#include <cassert>
+#include <cstdlib>
 #include <ctime>
 #include <iostream>
 #include <ratio>
-#include <vector>
 #include <unordered_map>
-#include <algorithm>
+#include <vector>
 
 template <typename T, size_t N, size_t M>
 class BinaryArray {
@@ -15,16 +15,17 @@ private:
   const T* const _raw;
   const size_t _rows;
 
-  bool lt(const T k0[M], const T k1[M]) const {
+  bool lt(const T* const a, const T* const b) const {
     for (size_t i = 0; i < M; i++) {
-      if (k0[i] < k1[i]) return true;
+      if (a[i] < b[i]) return true;
+      if (a[i] > b[i]) return false;
     }
     return false;
   }
 
-  bool eq(const T k0[M], const T k1[M]) const {
+  bool eq(const T* const a, const T* const b) const {
     for (size_t i = 0; i < M; i++) {
-      if (k0[i] != k1[i]) return false;
+      if (a[i] != b[i]) return false;
     }
     return true;
   }
@@ -35,20 +36,16 @@ public:
   BinaryArray(const BinaryArray& arr) = delete;
 
   explicit BinaryArray(const T* arr, int len) : _raw(arr), _rows(len / N) {}
-  
-  template<typename... Ks>
+
+  template <typename... Ks>
   const T* operator()(const Ks&... keys) const {
-    const T k0[] = {keys...};
-    T k1[M];
+    const T k[] = {keys...};
     int l = 0, h = _rows;
     while (l <= h) {
       const int m = l + ((h - l) >> 1);
       const T* r = _raw + (m * N);
-      for (int i = 0; i < M; i++) {
-        k1[i] = *(r + i);
-      }
-      if (eq(k0, k1)) return r;
-      lt(k0, k1) ? h = m - 1 : l = m + 1;
+      if (eq(k, r)) return r;
+      lt(k, r) ? h = m - 1 : l = m + 1;
     }
     return nullptr;
   }
@@ -82,8 +79,8 @@ typedef struct {
 
 using namespace std::chrono;
 
-#define SIZE 10
-#define RANDOM_MAX 99
+#define SIZE 10000000
+#define RANDOM_MAX 999
 #define CONTEXT_LIMIT 20
 #define random(a, b) (rand() % (b - a + 1) + a)
 
@@ -101,7 +98,7 @@ void generate_data(int* arr, std::unordered_map<Arg, int, Hash, Eq>& map) {
   std::vector<Arg> data;
   data.reserve(SIZE);
   // radom generate, allow duplicate
-  srand((int) time(NULL));
+  srand((int)time(NULL));
   while (data.size() < SIZE) {
     const Arg arg(random(0, RANDOM_MAX), random(0, RANDOM_MAX), random(0, RANDOM_MAX));
     data.push_back(arg);
@@ -143,7 +140,8 @@ void benchmark_ba(int* arr) {
   }
   high_resolution_clock::time_point t2 = high_resolution_clock::now();
   duration<double, std::milli> time_span = t2 - t1;
-  std::cout << "took " << time_span.count() << " milliseconds.\n"  << std::endl;
+  std::cout << "took " << time_span.count() << " milliseconds.\n"
+            << std::endl;
 }
 
 void benchmark_map(const std::unordered_map<Arg, int, Hash, Eq>& map, const int* arr) {
@@ -164,27 +162,17 @@ void benchmark_map(const std::unordered_map<Arg, int, Hash, Eq>& map, const int*
   }
   high_resolution_clock::time_point t2 = high_resolution_clock::now();
   duration<double, std::milli> time_span = t2 - t1;
-  std::cout << "took " << time_span.count() << " milliseconds.\n"  << std::endl;
+  std::cout << "took " << time_span.count() << " milliseconds.\n"
+            << std::endl;
 }
 
 void benchmark() {
-  int* arr = new int[SIZE * 3] {
-    25, 49, 98,
-    31, 59, 95,
-    35, 99, 82,
-    51, 87, 14,
-    63, 82, 80,
-    72, 36,  0,
-    75, 55, 22,
-    76, 15, 59,
-    77, 24, 71,
-    99, 71, 22
-  };
+  int* arr = new int[SIZE * 3];
   std::unordered_map<Arg, int, Hash, Eq> map;
-  // generate_data(arr, map);
+  generate_data(arr, map);
 
   benchmark_ba(arr);
-  // benchmark_map(map, arr);
+  benchmark_map(map, arr);
 }
 
 int main(int argc, char* argv[]) {
