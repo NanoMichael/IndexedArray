@@ -19,10 +19,15 @@ struct tuple<T, Ts...> : tuple<Ts...> {
 
   explicit tuple<T, Ts...>(const T& t, const Ts&... ts) : value(t), base_t(ts...) {}
 
-  bool operator<(const tuple<T, Ts...>& t) {
+  bool operator<(const tuple<T, Ts...>& t) const {
     if (value < t.value) return true;
     if (value > t.value) return false;
     return ((base_t) *this) < ((base_t) t);
+  }
+
+  bool operator==(const tuple<T, Ts...>& t) const {
+    if (value != t.value) return false;
+    return ((base_t) *this) == ((base_t) t);
   }
 };
 
@@ -37,6 +42,14 @@ struct tuple<T> : empty_tuple {
   tuple<T>() : value(T()) {}
 
   explicit tuple<T>(const T& t) : value(t) {}
+
+  bool operator<(const tuple<T>& t) const {
+    return value < t.value;
+  }
+
+  bool operator==(const tuple<T>& t) const {
+    return value == t.value;
+  }
 };
 
 template<std::size_t I, typename... Ts>
@@ -73,9 +86,10 @@ tuple<Ts...> make_tuple(const Ts&... ts) {
 
 int main(int argc, char* argv[]) {
   auto a = make_tuple(3, std::string("pi"), 3.14f);
-  auto b = make_tuple(3, std::string("pi"), 2.0f);
+  auto b = make_tuple(3, std::string("pi"), 3.14f);
   printf("[%d, %s, %f]\n", get<0>(a), get<1>(a).c_str(), get<2>(a));
   printf("[%d, %s, %f]\n", get<0>(b), get<1>(b).c_str(), get<2>(b));
   printf("b < a: %d\n", b < a);
+  printf("a == b: %d\n", b == a);
   return 0;
 }
