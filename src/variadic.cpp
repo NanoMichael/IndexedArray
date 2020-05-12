@@ -61,6 +61,11 @@ typename tuple_get<I, tuple<Ts...>>::value_t& get(tuple<Ts...>& t) {
   return ((tuple_t*)&t)->value;
 }
 
+template <typename... Ts>
+tuple<Ts...> make_tuple(const Ts&... ts) {
+  return tuple<Ts...>{ts...};
+}
+
 int main(int argc, char* argv[]) {
   auto a = make_tuple(3, std::string("pi"), 3.14f);
   auto b = make_tuple(3, std::string("pi"), 3.14f);
