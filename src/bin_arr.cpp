@@ -15,19 +15,12 @@ private:
   const T* const _raw;
   const size_t _rows;
 
-  bool lt(const T* const a, const T* const b) const {
+  int compare(const T a[M], const T b[M]) const {
     for (size_t i = 0; i < M; i++) {
-      if (a[i] < b[i]) return true;
-      if (a[i] > b[i]) return false;
+      if (a[i] < b[i]) return -1;
+      if (a[i] > b[i]) return 1;
     }
-    return false;
-  }
-
-  bool eq(const T* const a, const T* const b) const {
-    for (size_t i = 0; i < M; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
+    return 0;
   }
 
 public:
@@ -44,8 +37,9 @@ public:
     while (l <= h) {
       const int m = l + ((h - l) >> 1);
       const T* r = _raw + (m * N);
-      if (eq(k, r)) return r;
-      lt(k, r) ? h = m - 1 : l = m + 1;
+      const int cmp = compare(k, r);
+      if (cmp == 0) return r;
+      cmp < 0 ? h = m - 1 : l = m + 1;
     }
     return nullptr;
   }

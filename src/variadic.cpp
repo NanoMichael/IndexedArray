@@ -19,17 +19,6 @@ struct tuple<T, Ts...> : tuple<Ts...> {
   tuple<T, Ts...>() : value(T()), base_t() {}
 
   explicit tuple<T, Ts...>(const T& t, const Ts&... ts) : value(t), base_t(ts...) {}
-
-  bool operator<(const tuple<T, Ts...>& t) const {
-    if (value < t.value) return true;
-    if (value > t.value) return false;
-    return ((base_t) * this) < ((base_t)t);
-  }
-
-  bool operator==(const tuple<T, Ts...>& t) const {
-    if (value != t.value) return false;
-    return ((base_t) * this) == ((base_t)t);
-  }
 };
 
 template <typename T>
@@ -43,14 +32,6 @@ struct tuple<T> : empty_tuple {
   tuple<T>() : value(T()) {}
 
   explicit tuple<T>(const T& t) : value(t) {}
-
-  bool operator<(const tuple<T>& t) const {
-    return value < t.value;
-  }
-
-  bool operator==(const tuple<T>& t) const {
-    return value == t.value;
-  }
 };
 
 template <std::size_t I, typename... Ts>
@@ -80,33 +61,10 @@ typename tuple_get<I, tuple<Ts...>>::value_t& get(tuple<Ts...>& t) {
   return ((tuple_t*)&t)->value;
 }
 
-template <typename... Ts>
-struct tuple_hash;
-
-template <>
-struct tuple_hash<empty_tuple> {
-  size_t operator()(const empty_tuple& t) {
-    return 0;
-  }
-};
-
-template <typename T, typename... Ts>
-struct tuple_hash<tuple<T, Ts...>> {
-  size_t operator()(const tuple<T, Ts...>& t) {
-    return std::hash<T>(get<0>(t)) + 31 * tuple_hash<tuple<Ts...>>{}(t);
-  }
-};
-
-template <typename... Ts>
-tuple<Ts...> make_tuple(const Ts&... ts) {
-  return tuple<Ts...>{ts...};
-}
-
 int main(int argc, char* argv[]) {
   auto a = make_tuple(3, std::string("pi"), 3.14f);
   auto b = make_tuple(3, std::string("pi"), 3.14f);
   printf("[%d, %s, %f]\n", get<0>(a), get<1>(a).c_str(), get<2>(a));
   printf("[%d, %s, %f]\n", get<0>(b), get<1>(b).c_str(), get<2>(b));
-  printf("hash a: %ud\n", tuple_hash<int, std::string, float>{}(a));
   return 0;
 }
