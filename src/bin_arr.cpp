@@ -67,11 +67,10 @@ void show_context(const int* arr, const int i, const int limit = CONTEXT_LIMIT) 
 
 using Arg = std::tuple<int, int, int>;
 using Hash = tuple_hash<Arg>;
-using Eq = tuple_eq<Arg>;
 
 void generate_data(
   int* arr,
-  std::unordered_map<Arg, int, Hash, Eq>& hash_map,
+  std::unordered_map<Arg, int, Hash>& hash_map,
   std::map<Arg, int>& map) {
   std::vector<Arg> data;
   data.reserve(SIZE);
@@ -143,7 +142,7 @@ void benchmark_map(const Map& map, const int* arr) {
 
 void benchmark() {
   int* arr = new int[SIZE * 3];
-  std::unordered_map<Arg, int, Hash, Eq> hash_map;
+  std::unordered_map<Arg, int, Hash> hash_map;
   std::map<Arg, int> map;
   generate_data(arr, hash_map, map);
 

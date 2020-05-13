@@ -44,13 +44,3 @@ struct tuple_hash<std::tuple<Ts...>> {
     return tuple_fold_left(combine_hash<void>{}, t);
   }
 };
-
-template <typename... Ts>
-struct tuple_eq;
-
-template <typename... Ts>
-struct tuple_eq<std::tuple<Ts...>> {
-  size_t operator()(const std::tuple<Ts...>& a, const std::tuple<Ts...>& b) const {
-    return a == b;
-  }
-};
