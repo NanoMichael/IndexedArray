@@ -69,7 +69,10 @@ using Arg = std::tuple<int, int, int>;
 using Hash = tuple_hash<Arg>;
 using Eq = tuple_eq<Arg>;
 
-void generate_data(int* arr, std::unordered_map<Arg, int, Hash, Eq>& map) {
+void generate_data(
+  int* arr,
+  std::unordered_map<Arg, int, Hash, Eq>& hash_map,
+  std::map<Arg, int>& map) {
   std::vector<Arg> data;
   data.reserve(SIZE);
   // radom generate, allow duplicate
@@ -77,6 +80,7 @@ void generate_data(int* arr, std::unordered_map<Arg, int, Hash, Eq>& map) {
   while (data.size() < SIZE) {
     const Arg arg{random(0, RANDOM_MAX), random(0, RANDOM_MAX), random(0, RANDOM_MAX)};
     data.push_back(arg);
+    hash_map[arg] = 0;
     map[arg] = 0;
   }
   // sort the vector
@@ -109,7 +113,6 @@ void count_time(const F& f) {
 
 void benchmark_ba(int* arr) {
   const BinaryArray<int, 3, 3> ba(arr, SIZE * 3);
-  printf("find in arr:\n");
   for (int i = 0; i < SIZE; i++) {
     const int start = i * 3;
     const int* r = ba(arr[start + 0], arr[start + 1], arr[start + 2]);
@@ -121,9 +124,9 @@ void benchmark_ba(int* arr) {
   }
 }
 
-void benchmark_hash_map(const std::unordered_map<Arg, int, Hash, Eq>& map, const int* arr) {
-  printf("find in map:\n");
-  Arg args = std::make_tuple(0, 0, 0);
+template <typename Map>
+void benchmark_map(const Map& map, const int* arr) {
+  Arg args{0, 0, 0};
   for (int i = 0; i < SIZE; i++) {
     const int start = i * 3;
     std::get<0>(args) = arr[start + 0];
@@ -140,11 +143,16 @@ void benchmark_hash_map(const std::unordered_map<Arg, int, Hash, Eq>& map, const
 
 void benchmark() {
   int* arr = new int[SIZE * 3];
-  std::unordered_map<Arg, int, Hash, Eq> map;
-  generate_data(arr, map);
+  std::unordered_map<Arg, int, Hash, Eq> hash_map;
+  std::map<Arg, int> map;
+  generate_data(arr, hash_map, map);
 
+  printf("find in ba:\n");
   count_time([arr]() { benchmark_ba(arr); });
-  count_time([map, arr]() { benchmark_hash_map(map, arr); });
+  printf("find in hash map:\n");
+  count_time([hash_map, arr]() { benchmark_map(hash_map, arr); });
+  printf("find in tree map:\n");
+  count_time([map, arr]() { benchmark_map(map, arr); });
 }
 
 int main(int argc, char* argv[]) {
