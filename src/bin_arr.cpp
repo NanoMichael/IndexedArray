@@ -9,6 +9,7 @@
 #include <ratio>
 #include <unordered_map>
 #include <vector>
+#include <sstream>
 
 #include "tuple_hash.hpp"
 
@@ -50,14 +51,13 @@ public:
 
 using namespace std::chrono;
 
-#define SIZE 10000000
 #define RANDOM_MAX 999
 #define CONTEXT_LIMIT 20
 #define random(a, b) (rand() % (b - a + 1) + a)
 
-void show_context(const int* arr, const int i, const int limit = CONTEXT_LIMIT) {
+void show_context(const int* arr, const size_t size, const int i, const int limit = CONTEXT_LIMIT) {
   const int start = std::max(0, i - limit);
-  const int end = std::min(SIZE, i + limit);
+  const int end = std::min(size, (size_t)(i + limit));
   for (int j = start; j < end; j++) {
     printf("%2d, %2d, %2d,", arr[j * 3 + 0], arr[j * 3 + 1], arr[j * 3 + 2]);
     if (j == i) printf(" <- %d", i);
@@ -70,13 +70,14 @@ using Hash = tuple_hash<Arg>;
 
 void generate_data(
   int* arr,
+  const size_t size,
   std::unordered_map<Arg, int, Hash>& hash_map,
   std::map<Arg, int>& map) {
   std::vector<Arg> data;
-  data.reserve(SIZE);
+  data.reserve(size);
   // radom generate, allow duplicate
   srand((int)time(NULL));
-  while (data.size() < SIZE) {
+  while (data.size() < size) {
     const Arg arg{random(0, RANDOM_MAX), random(0, RANDOM_MAX), random(0, RANDOM_MAX)};
     data.push_back(arg);
     hash_map[arg] = 0;
@@ -87,7 +88,7 @@ void generate_data(
     return x < y;
   });
   // convert vector to array
-  for (int i = 0; i < SIZE; i++) {
+  for (int i = 0; i < size; i++) {
     const int start = i * 3;
     const Arg& x = data[i];
     arr[start + 0] = std::get<0>(x);
@@ -101,22 +102,21 @@ bool eq(const int* r, const int* a, int start) {
 }
 
 template <typename F>
-void count_time(const F& f) {
+double count_time(const F& f) {
   high_resolution_clock::time_point t1 = high_resolution_clock::now();
   f();
   high_resolution_clock::time_point t2 = high_resolution_clock::now();
   duration<double, std::milli> time_span = t2 - t1;
-  std::cout << "took " << time_span.count() << " milliseconds.\n"
-            << std::endl;
+  return time_span.count();
 }
 
-void benchmark_ba(int* arr) {
-  const BinaryArray<int, 3, 3> ba(arr, SIZE * 3);
-  for (int i = 0; i < SIZE; i++) {
+void benchmark_ba(int* arr, const size_t size) {
+  const BinaryArray<int, 3, 3> ba(arr, size * 3);
+  for (int i = 0; i < size; i++) {
     const int start = i * 3;
     const int* r = ba(arr[start + 0], arr[start + 1], arr[start + 2]);
     if (r == nullptr || !eq(r, arr, start)) {
-      show_context(arr, i);
+      show_context(arr, size , i);
     }
     assert(r != nullptr);
     assert(eq(r, arr, start));
@@ -124,9 +124,9 @@ void benchmark_ba(int* arr) {
 }
 
 template <typename Map>
-void benchmark_map(const Map& map, const int* arr) {
+void benchmark_map(const Map& map, const int* arr, const size_t size) {
   Arg args{0, 0, 0};
-  for (int i = 0; i < SIZE; i++) {
+  for (int i = 0; i < size; i++) {
     const int start = i * 3;
     std::get<0>(args) = arr[start + 0];
     std::get<1>(args) = arr[start + 1];
@@ -134,24 +134,50 @@ void benchmark_map(const Map& map, const int* arr) {
     auto it = map.find(args);
     if (it == map.end()) {
       printf("[%d, %d, %d]\n", std::get<0>(args), std::get<1>(args), std::get<2>(args));
-      show_context(arr, i);
+      show_context(arr, size, i);
     }
     assert(it != map.end());
   }
 }
 
-void benchmark() {
-  int* arr = new int[SIZE * 3];
+auto run_epoch(const size_t size) {
+  int* arr = new int[size * 3];
   std::unordered_map<Arg, int, Hash> hash_map;
   std::map<Arg, int> map;
-  generate_data(arr, hash_map, map);
+  generate_data(arr, size, hash_map, map);
 
-  printf("find in ba:\n");
-  count_time([arr]() { benchmark_ba(arr); });
-  printf("find in hash map:\n");
-  count_time([hash_map, arr]() { benchmark_map(hash_map, arr); });
-  printf("find in tree map:\n");
-  count_time([map, arr]() { benchmark_map(map, arr); });
+  auto arr_time = count_time([arr, size] { benchmark_ba(arr, size); });
+  auto map_time = count_time([&map, arr, size] { benchmark_map(map, arr, size); });
+  auto hash_time = count_time([&hash_map, arr, size] { benchmark_map(hash_map, arr, size); });
+
+  delete[] arr;
+
+  return std::make_tuple(arr_time, map_time, hash_time);
+}
+
+void unit_KorM(const int n, std::string& s) {
+  std::stringstream ss;
+  if (n > 100000) ss << (n / 1000000) << "M";
+  else ss << (n / 1000) << "K";
+  ss >> s;
+}
+
+void benchmark() {
+  size_t data_size = 1000;
+  printf("%8s %8s %8s %8s\n", "SIZE", "BA", "MAP", "HASH");
+  for (int i = 0; i < 5; i++) {
+    auto durations = run_epoch(data_size);
+    std::string s;
+    unit_KorM(data_size, s);
+    printf(
+      "%8s %8.2lf %8.2lf %8.2lf\n",
+      s.c_str(),
+      std::get<0>(durations),
+      std::get<1>(durations),
+      std::get<2>(durations)
+    );
+    data_size *= 10;
+  }
 }
 
 int main(int argc, char* argv[]) {
