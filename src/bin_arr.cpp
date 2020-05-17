@@ -7,9 +7,9 @@
 #include <iostream>
 #include <map>
 #include <ratio>
+#include <sstream>
 #include <unordered_map>
 #include <vector>
-#include <sstream>
 
 #include "tuple_hash.hpp"
 
@@ -51,9 +51,9 @@ public:
 
 using namespace std::chrono;
 
-#define RANDOM_MAX 999
+#define RANDOM_MAX    999
 #define CONTEXT_LIMIT 20
-#define random(a, b) (rand() % (b - a + 1) + a)
+#define random(a, b)  (rand() % (b - a + 1) + a)
 
 void show_context(const int* arr, const size_t size, const int i, const int limit = CONTEXT_LIMIT) {
   const int start = std::max(0, i - limit);
@@ -69,10 +69,10 @@ using Arg = std::tuple<int, int, int>;
 using Hash = tuple_hash<Arg>;
 
 void generate_data(
-  int* arr,
-  const size_t size,
-  std::unordered_map<Arg, int, Hash>& hash_map,
-  std::map<Arg, int>& map) {
+    int* arr,
+    const size_t size,
+    std::unordered_map<Arg, int, Hash>& hash_map,
+    std::map<Arg, int>& map) {
   std::vector<Arg> data;
   data.reserve(size);
   // radom generate, allow duplicate
@@ -116,7 +116,7 @@ void benchmark_ba(int* arr, const size_t size) {
     const int start = i * 3;
     const int* r = ba(arr[start + 0], arr[start + 1], arr[start + 2]);
     if (r == nullptr || !eq(r, arr, start)) {
-      show_context(arr, size , i);
+      show_context(arr, size, i);
     }
     assert(r != nullptr);
     assert(eq(r, arr, start));
@@ -157,25 +157,26 @@ auto run_epoch(const size_t size) {
 
 void unit_KorM(const int n, std::string& s) {
   std::stringstream ss;
-  if (n > 100000) ss << (n / 1000000) << "M";
-  else ss << (n / 1000) << "K";
+  if (n > 100000)
+    ss << (n / 1000000) << "M";
+  else
+    ss << (n / 1000) << "K";
   ss >> s;
 }
 
 void benchmark() {
   size_t data_size = 1000;
-  printf("%8s %8s %8s %8s\n", "SIZE", "BA", "MAP", "HASH");
+  printf("%5s %8s %8s %8s\n", "SIZE", "BA", "MAP", "HASH");
   for (int i = 0; i < 5; i++) {
     auto durations = run_epoch(data_size);
     std::string s;
     unit_KorM(data_size, s);
     printf(
-      "%8s %8.2lf %8.2lf %8.2lf\n",
-      s.c_str(),
-      std::get<0>(durations),
-      std::get<1>(durations),
-      std::get<2>(durations)
-    );
+        "%5s %8.2lf %8.2lf %8.2lf\n",
+        s.c_str(),
+        std::get<0>(durations),
+        std::get<1>(durations),
+        std::get<2>(durations));
     data_size *= 10;
   }
 }
